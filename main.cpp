@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include "inc/UDP_socket.h"
 #include "inc/UARTComms.h"
+#include "inc/SpektrumRX.h"
 
 int main(void){
 	//UDP_socket droneConnection = UDP_socket("127.0.0.1","5556");
@@ -10,15 +11,10 @@ int main(void){
 	//sleep(5);
 	//droneConnection.land();
 
-	UARTComms * uartComms = new UARTComms();
+	SpektrumRX * spektrumRX = new SpektrumRX();
 
-	int i;
-	for (i = 0; i < 100; i++){
-		usleep(10000);
-		uartComms->writeByte(0xAA);
-	}
-
-	uartComms->~UARTComms();
+	sleep(10);
+	spektrumRX->~SpektrumRX();
 
 	return 0;
 }

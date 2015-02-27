@@ -22,6 +22,8 @@
 #include <errno.h>
 #include <poll.h>
 #include <sys/ioctl.h>
+#include <fstream>
+#include <sys/time.h>
 
 #define BAUD B115200
 #define DATABITS CS8
@@ -30,6 +32,7 @@
 #define PARITYON 0
 #define MODEMDEVICE "/dev/ttyO3"
 #define _POSIX_SOURCE 1         //POSIX compliant source
+#define SPEKTRUM_RX_LOGFILE "log.txt"
 
 #define SPEKTRUMRX_m0 (1.1721)
 #define SPEKTRUMRX_c0 (940)
@@ -41,7 +44,14 @@ public:
 	void printBuffer(void);
 	void stopReceiveThread(void);
 	void decodeData(void);
-	void clearScreen(void);
+	void logData(void);
+	double timeSinceStart(void);
+	// log data for test
+    std::ofstream logFile;
+    void openLogFile(void);
+    void closeLogFile(void);
+    bool writeLogFile(void);
+
 	virtual void process(void);
 	virtual ~SpektrumRX();
 private:
@@ -59,8 +69,9 @@ private:
     volatile bool autoSampleThreadRun;
     pthread_mutex_t count_mutex;
 
-    unsigned short int esc, right, front, rudder, gain, left;
     unsigned short int channel[6];
+
+    char write_buffer[512];
 };
 
 #endif /* SPEKTRUMRX_H_ */

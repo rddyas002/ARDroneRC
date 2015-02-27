@@ -38,19 +38,19 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: ArDrone
+all: ARDroneRC
 
 # Tool invocations
-ArDrone: $(OBJS) $(USER_OBJS)
+ARDroneRC: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross G++ Linker'
-	arm-none-linux-gnueabi-g++ -L/usr/local/codesourcery/arm-2009q3/arm-none-linux-gnueabi/libc/lib -o "ArDrone" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-none-linux-gnueabi-g++ -L/usr/local/codesourcery/arm-2009q3/arm-none-linux-gnueabi/libc/lib -o "ARDroneRC" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(C++_DEPS)$(OBJS)$(C_DEPS)$(CC_DEPS)$(CPP_DEPS)$(EXECUTABLES)$(CXX_DEPS)$(C_UPPER_DEPS) ArDrone
+	-$(RM) $(C++_DEPS)$(OBJS)$(C_DEPS)$(CC_DEPS)$(CPP_DEPS)$(EXECUTABLES)$(CXX_DEPS)$(C_UPPER_DEPS) ARDroneRC
 	-@echo ' '
 
 .PHONY: all clean dependents

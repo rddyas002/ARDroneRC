@@ -7,11 +7,13 @@
 
 #include "../inc/SpektrumRX.h"
 #include <stdlib.h>
+#include <bitset>
+#include <iostream>
+#include <climits>
 
 extern "C"{
     // this C function will be used to receive the thread and pass it back to the Thread instance
-    void* thread_catch_spektrumrx(void* arg)
-    {
+    void* thread_catch_spektrumrx(void* arg){
     	SpektrumRX* t = static_cast<SpektrumRX*>(arg);
         t->process();
         return 0;
@@ -23,11 +25,14 @@ SpektrumRX::SpektrumRX(double t0) {
     sprintf(devicename, "%s", MODEMDEVICE);
     time_t0 = t0;
     time_t0 = timeSinceStart();
+    memset(&reference_command[0], 0, sizeof(float)*6);
 
     spektrum_fd = open(devicename, O_RDWR | O_NOCTTY);
 
-    if (spektrum_fd < 0)
+    if (spektrum_fd < 0){
         perror(devicename);
+        exit(1);
+    }
     else
         std::cout << "Port " << devicename << " successfully opened." << std::endl;
 
@@ -44,6 +49,11 @@ SpektrumRX::SpektrumRX(double t0) {
     if (pthread_create(&autoSample_thread, 0, &thread_catch_spektrumrx, this) != 0){
         std::cout << "Receive thread creation error." << std::endl;
     }
+
+//    // Make thread priority high
+//    struct sched_param sp;
+//    sp.sched_priority = 95;
+//    pthread_setschedparam(autoSample_thread, SCHED_FIFO, &sp);
 }
 
 double SpektrumRX::timeSinceStart(void){
@@ -78,38 +88,100 @@ void SpektrumRX::decodeData(void){
 	}
 }
 
+void SpektrumRX::decodePacket(char bytes){
+    unsigned short int spektrum_word;
+    short int temp = 0;
+
+    // rough error checking
+	if ((read_buffer[0] == 0x03) && (read_buffer[1] == 0x01) && (read_buffer[bytes-2] == 0x18)){
+        if ((read_buffer[2] & 0xFC) == SPEKTRUM_CH1){
+            spektrum_word = ((unsigned short int)read_buffer[2] << 8) & 0x03FF;
+            channel[1] = (unsigned short int) (spektrum_word | (unsigned char)read_buffer[3]);
+            reference_command[1] = ((float)channel[1] - 511)/360;
+        }
+        if ((read_buffer[4] & 0xFC) == SPEKTRUM_CH5){
+            spektrum_word = ((unsigned short int)read_buffer[4] << 8) & 0x03FF;
+            channel[5] = (unsigned short int) (spektrum_word | (unsigned char)read_buffer[5]);
+            if (channel[5] > 180){
+            	reference_command[5] = 0;
+            }
+            else{
+            	reference_command[5] = 1;
+            }
+
+        }
+        if ((read_buffer[6] & 0xFC) == SPEKTRUM_CH2){
+            spektrum_word = ((unsigned short int)read_buffer[6] << 8) & 0x03FF;
+            channel[2] = (unsigned short int) (spektrum_word | (unsigned char)read_buffer[7]);
+            reference_command[2] = ((float)channel[2] - 511)/360;
+        }
+        if ((read_buffer[8] & 0xF8) == SPEKTRUM_CH3){
+            spektrum_word = ((unsigned short int)read_buffer[8] << 8) & 0x07FF;
+            channel[3] = (unsigned short int) (spektrum_word | (unsigned char)read_buffer[9]);
+            // +ve signal
+            if ((channel[3] & (0b11 << 9)) == (0b11 << 9)){
+            	temp = (short int)(channel[3] & 0x01FF);
+            }
+            else if ((channel[3] & (0b01 << 9)) == (0b01 << 9)){// -ve signal
+            	temp = (signed short int) (-255 + (channel[3] & 0xFF));
+            }
+            else if ((channel[3] & (0b10 << 9)) == (0b10 << 9)){
+            	temp = -255 + (signed short int) (-255 + (channel[3] & 0xFF));
+            }
+            reference_command[3] = -(float)temp/360;
+        }
+        if ((read_buffer[10] & 0xFC) == SPEKTRUM_CH0){
+            spektrum_word = ((unsigned short int)read_buffer[10] << 8) & 0x03FF;
+            channel[0] = (unsigned short int) (spektrum_word | (unsigned char)read_buffer[11]);
+            reference_command[0] = (float)channel[0]/900;
+        }
+        //if ((read_buffer[12] & 0xFC) == SPEKTRUM_CH4){
+        if (bytes == 16){
+//            spektrum_word = ((unsigned short int)read_buffer[12] << 8) & 0x03FF;
+//            channel[4] = (unsigned short int) (spektrum_word | (unsigned char)read_buffer[13]);
+            	reference_command[4] = 0;
+        }
+        else
+        	reference_command[4] = 1;
+  //      }
+//        std::cout << "R = " << (std::bitset<16>) channel[4] << std::endl;
+    }
+}
+
 void SpektrumRX::process(void){
 	autoSampleThreadRun = true;
 
     std::cout << "Entering RX thread" << std::endl;
+    // Flush read buffer
+    tcflush(spektrum_fd,TCIFLUSH);
 
 	while(autoSampleThreadRun){
         int bytes_available = 0;
         ioctl(spektrum_fd, FIONREAD, &bytes_available);
-
-        if (bytes_available > 15)
-        {
-            int n = read(spektrum_fd,&read_buffer[0],256);
+        if (bytes_available > 14){
+            int n = read(spektrum_fd,&read_buffer[0],64);
             read_buffer[n] = '\0';
-            decodeData();
-            //printBuffer();
+            //decodeData();
+            decodePacket(n);
+            printBuffer();
+            fflush(stdout);
             logData();
-            usleep(20000);
         }
+        usleep(10000);
 	}
 
 	std::cout << "Exiting RX thread" << std::endl;
 }
 
 void SpektrumRX::printBuffer(void){
-	printf("%-7s%1u%7s%5u%7s%5u%7s%5u%7s%5u%8s%5u\r",
-			"CH0:", channel[0],
-			"CH1:", channel[1],
-			"CH2:", channel[2],
-			"CH3:", channel[3],
-			"CH4:", channel[4],
-			"CH5:", channel[5]);
-	fflush(stdout);
+	printf("%-7s%5.2f%7s%5.2f%7s%5.2f%7s%5.2f%7s%5.2f%8s%5.2f\r",
+			"THR:", reference_command[0],
+			"ROL:", reference_command[1],
+			"PIT:", reference_command[2],
+			"YAW:", reference_command[3],
+			"CH4:", reference_command[4],
+			"CH5:", reference_command[5]);
+
 }
 
 void SpektrumRX::logData(void){

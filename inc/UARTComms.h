@@ -26,12 +26,12 @@
 #include <string.h>
 #include <locale.h>
 
-#define BAUD B115200
-#define DATABITS CS8
-#define STOPBITS 0
-#define PARITY 0
-#define PARITYON 0
-#define MODEMDEVICE "/dev/ttyO3"
+#define UART_BAUD B115200
+#define UART_DATABITS CS8
+#define UART_STOPBITS 0
+#define UART_PARITY 0
+#define UART_PARITYON 0
+#define UART_MODEMDEVICE "/dev/ttyUSB0"
 #define _POSIX_SOURCE 1         //POSIX compliant source
 
 #define MAV_FILTER_N    10

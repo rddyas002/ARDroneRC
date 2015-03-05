@@ -12,8 +12,7 @@ int main(void){
 	//droneConnection.land();
 
 	SpektrumRX * spektrumRX = new SpektrumRX();
-
-	sleep(10);
+	sleep(30);
 	spektrumRX->~SpektrumRX();
 
 	return 0;

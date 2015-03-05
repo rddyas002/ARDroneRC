@@ -18,7 +18,7 @@ extern "C"{
 }
 
 UARTComms::UARTComms() {
-    sprintf(devicename, "%s", MODEMDEVICE);
+    sprintf(devicename, "%s", UART_MODEMDEVICE);
     uart_fd = open(devicename, O_RDWR | O_NOCTTY);
 
     if (uart_fd < 0)

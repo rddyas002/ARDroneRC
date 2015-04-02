@@ -25,6 +25,7 @@
 #include <fstream>
 #include <sys/time.h>
 #include <pthread.h>
+#include "UDP_socket.h"
 
 #define BAUD B115200
 #define DATABITS CS8
@@ -53,7 +54,6 @@ public:
 	SpektrumRX(double t0 = 0);
 	void printBuffer(void);
 	void stopReceiveThread(void);
-	void decodeData(void);
 	void logData(void);
 	double timeSinceStart(void);
 	void decodePacket(char bytes);
@@ -62,6 +62,14 @@ public:
     void openLogFile(void);
     void closeLogFile(void);
     bool writeLogFile(void);
+
+    float getThrottle(void);
+    float getRoll(void);
+    float getPitch(void);
+    float getYaw(void);
+    float getAuto(void);
+    float deadband(float reference, float half_width);
+    bool initOkay(void);
 
 	virtual void process(void);
 	virtual ~SpektrumRX();

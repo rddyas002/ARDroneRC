@@ -25,7 +25,7 @@ SpektrumRX::SpektrumRX(double t0) {
     sprintf(devicename, "%s", MODEMDEVICE);
     time_t0 = t0;
     time_t0 = timeSinceStart();
-    memset(&reference_command[0], 0, sizeof(float)*6);
+    memset(&reference_command[0], 10, sizeof(float)*6);
 
     spektrum_fd = open(devicename, O_RDWR | O_NOCTTY);
 
@@ -62,32 +62,6 @@ double SpektrumRX::timeSinceStart(void){
 	return ((tv.tv_sec)*1e6 + (tv.tv_nsec)/1e3 - time_t0);
 }
 
-void SpektrumRX::decodeData(void){
-	unsigned short int spektrum_word;
-
-	if ((read_buffer[0] == 0x03) &&
-		(read_buffer[1] == 0x01)){
-
-		spektrum_word = ((unsigned short int) read_buffer[2] << 8) & 0x3FF;
-		channel[1] = (unsigned short int) (spektrum_word | (unsigned char) read_buffer[3]);
-
-		spektrum_word = ((unsigned short int) read_buffer[4] << 8) & 0x3FF;
-		channel[5] = (unsigned short int) (spektrum_word | (unsigned char) read_buffer[5]);
-
-		spektrum_word = ((unsigned short int) read_buffer[6] << 8) & 0x3FF;
-		channel[2] = (unsigned short int) (spektrum_word | (unsigned char) read_buffer[7]);
-
-		spektrum_word = ((unsigned short int) read_buffer[8] << 8) & 0x3FF;
-		channel[3] = (unsigned short int) (spektrum_word | (unsigned char) read_buffer[9]);
-
-		spektrum_word = ((unsigned short int) read_buffer[10] << 8) & 0x3FF;
-		channel[0] = (unsigned short int) (spektrum_word | (unsigned char) read_buffer[11]);
-
-		spektrum_word = ((unsigned short int) read_buffer[12] << 8) & 0x3FF;
-		channel[4] = (unsigned short int) (spektrum_word | (unsigned char) read_buffer[13]);
-	}
-}
-
 void SpektrumRX::decodePacket(char bytes){
     unsigned short int spektrum_word;
     short int temp = 0;
@@ -113,7 +87,7 @@ void SpektrumRX::decodePacket(char bytes){
         if ((read_buffer[6] & 0xFC) == SPEKTRUM_CH2){
             spektrum_word = ((unsigned short int)read_buffer[6] << 8) & 0x03FF;
             channel[2] = (unsigned short int) (spektrum_word | (unsigned char)read_buffer[7]);
-            reference_command[2] = ((float)channel[2] - 511)/360;
+            reference_command[2] = -((float)channel[2] - 511)/360;
         }
         if ((read_buffer[8] & 0xF8) == SPEKTRUM_CH3){
             spektrum_word = ((unsigned short int)read_buffer[8] << 8) & 0x07FF;
@@ -133,19 +107,40 @@ void SpektrumRX::decodePacket(char bytes){
         if ((read_buffer[10] & 0xFC) == SPEKTRUM_CH0){
             spektrum_word = ((unsigned short int)read_buffer[10] << 8) & 0x03FF;
             channel[0] = (unsigned short int) (spektrum_word | (unsigned char)read_buffer[11]);
-            reference_command[0] = (float)channel[0]/900;
+            reference_command[0] = (float)channel[0]/400 - 1.06;
         }
-        //if ((read_buffer[12] & 0xFC) == SPEKTRUM_CH4){
         if (bytes == 16){
-//            spektrum_word = ((unsigned short int)read_buffer[12] << 8) & 0x03FF;
-//            channel[4] = (unsigned short int) (spektrum_word | (unsigned char)read_buffer[13]);
             	reference_command[4] = 0;
         }
-        else
+        else{
         	reference_command[4] = 1;
-  //      }
-//        std::cout << "R = " << (std::bitset<16>) channel[4] << std::endl;
+
+        }
     }
+}
+
+bool SpektrumRX::initOkay(void){
+	// check if all sticks are centered and land selected all is okay
+	if (getThrottle() == 0){
+		if (getRoll() == 0){
+			if (getPitch() == 0){
+				if (getYaw() == 0){
+					if (getAuto() == 0)
+						return true;
+					else
+						return false;
+				}
+				else
+					return false;
+			}
+			else
+				return false;
+		}
+		else
+			return false;
+	}
+	else
+		return false;
 }
 
 void SpektrumRX::process(void){
@@ -161,11 +156,10 @@ void SpektrumRX::process(void){
         if (bytes_available > 14){
             int n = read(spektrum_fd,&read_buffer[0],64);
             read_buffer[n] = '\0';
-            //decodeData();
             decodePacket(n);
-            printBuffer();
-            fflush(stdout);
-            logData();
+//            printBuffer();
+//            fflush(stdout);
+          //  logData();
         }
         usleep(10000);
 	}
@@ -174,7 +168,7 @@ void SpektrumRX::process(void){
 }
 
 void SpektrumRX::printBuffer(void){
-	printf("%-7s%5.2f%7s%5.2f%7s%5.2f%7s%5.2f%7s%5.2f%8s%5.2f\r",
+	printf("%-7s%5.2f%7s%5.2f%7s%5.2f%7s%5.2f%7s%5.2f%8s%5.2f\r\n",
 			"THR:", reference_command[0],
 			"ROL:", reference_command[1],
 			"PIT:", reference_command[2],
@@ -182,6 +176,39 @@ void SpektrumRX::printBuffer(void){
 			"CH4:", reference_command[4],
 			"CH5:", reference_command[5]);
 
+}
+
+float SpektrumRX::deadband(float reference, float half_width){
+    if ((reference > -half_width) && (reference < half_width)){
+    	reference = 0;
+    }
+    else{
+    	if (reference > half_width)
+    		reference -= half_width;
+    	if (reference < -half_width)
+    		reference += half_width;
+    }
+    return reference;
+}
+
+float SpektrumRX::getThrottle(void){
+	return deadband(reference_command[0], 0.2);
+}
+
+float SpektrumRX::getRoll(void){
+	return deadband(reference_command[1], 0.05);
+}
+
+float SpektrumRX::getPitch(void){
+	return deadband(reference_command[2], 0.05);
+}
+
+float SpektrumRX::getYaw(void){
+	return deadband(reference_command[3], 0.05);
+}
+
+float SpektrumRX::getAuto(void){
+	return reference_command[5];
 }
 
 void SpektrumRX::logData(void){

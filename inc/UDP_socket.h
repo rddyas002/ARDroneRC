@@ -15,10 +15,22 @@
 #include <string.h>
 #include <iostream>
 
+#define YAW_RATE 4
+#define THROTTLE_RATE 15000
+#define PITCH_ROLL_RATE 1
+#define ALTITUDE_MAX 10000
+#define FLY_OUTDOOR "FALSE"
+
 class UDP_socket {
 public:
 	UDP_socket(const char * ip_address, const char * ip_port);
-	void takeOff(void);
+	void initialiseDrone(void);
+	void sendData(void);
+	void resetWatchdog(void);
+	void flatTrim(void);
+	void takeOff(float roll, float pitch, float heave_rate, float yaw_rate);
+	void hoverControl(float roll, float pitch, float heave_rate, float yaw_rate);
+	void flying(float roll, float pitch, float heave_rate, float yaw_rate);
 	void land(void);
 	virtual ~UDP_socket();
 

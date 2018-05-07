@@ -32,17 +32,17 @@ int main(void) {
 	if (!navdata_init()) exit(1);
 	//if(!actuators_ardrone_init()) exit(1);
 	//if(!spektrum_init()) exit(1);
-	printf("test");
+	printf("Fly started.");
 	while(keepRunning){
 		double now = timeNow_us();
 		while ((timeNow_us() - now) < 1000000);
-		printf("%5.2f,%5.2f,%5.2f|%5.2f,%5.2f,%5.2f\r\n", imu_data.ypr[0],imu_data.ypr[1],imu_data.ypr[2],imu_data.w_bias[0]*180.0f/M_PI_f,imu_data.w_bias[1]*180.0f/M_PI_f,imu_data.w_bias[2]*180.0f/M_PI_f);
 
+		printf("%5.2f,%5.2f,%5.2f|%5.2f,%5.2f,%5.2f\r\n", imu_data.ypr[0],imu_data.ypr[1],imu_data.ypr[2],imu_data.w_bias[0]*180.0f/M_PI_f,imu_data.w_bias[1]*180.0f/M_PI_f,imu_data.w_bias[2]*180.0f/M_PI_f);
 	}
 	//actuators_ardrone_close();
 	close_navdata();
 	//close_spektrum();
-	printf("Terminated cleanly.\r\n");
+	printf("Fly ended.\r\n");
 	return EXIT_SUCCESS;
 }
 
